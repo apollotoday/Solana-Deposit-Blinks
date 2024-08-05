@@ -12,6 +12,7 @@ import {
   clusterApiUrl,
   VersionedTransaction,
   BlockhashWithExpiryBlockHeight,
+  Transaction,
 } from "@solana/web3.js";
 
 interface ApiResponse {
@@ -33,7 +34,7 @@ export async function GET(request: Request): Promise<Response> {
       actions: [
         {
           label: "Deposit",
-          href: `${url.href}?amount=100`,
+          href: `${url.href}?amount=10`,
           parameters: [
             {
               name: "amountInUSDC",
@@ -58,9 +59,9 @@ export async function POST(request: Request): Promise<Response> {
   let sender: PublicKey;
 
   try {
-    body = await request.json() as ActionPostRequest;
+    body = (await request.json()) as ActionPostRequest;
     const url = new URL(request.url);
-    amount = 100;
+    amount = 10;
 
     sender = new PublicKey(body.account);
   } catch (error) {
@@ -80,23 +81,28 @@ export async function POST(request: Request): Promise<Response> {
 
   const requestBody = {
     owner: sender.toString(),
-    mintAddress: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 
+    mintAddress: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
     depositAmount: amount.toString(),
   };
 
   let apiResponse: Response;
 
   try {
-    apiResponse = await fetch(`https://api.flexlend.fi/generate/account/deposit?priorityFee=50000`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'x-wallet-pubkey': sender.toString(),
-        'x-api-key': process.env.FLEXLEND_API_KEY || '4b8857f7-dd50-4c74-802f-342d02881f1d',
-      },
-      body: JSON.stringify(requestBody),
-    });
+    apiResponse = await fetch(
+      `https://api.flexlend.fi/generate/account/deposit?priorityFee=50000`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "x-wallet-pubkey": sender.toString(),
+          "x-api-key":
+            process.env.FLEXLEND_API_KEY ||
+            "4b8857f7-dd50-4c74-802f-342d02881f1d",
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
 
     if (!apiResponse.ok) {
       throw new Error(`API response status: ${apiResponse.status}`);
@@ -119,7 +125,7 @@ export async function POST(request: Request): Promise<Response> {
   let transactionMeta: string;
 
   try {
-    const apiResponseBody = await apiResponse.json() as ApiResponse;
+    const apiResponseBody = (await apiResponse.json()) as ApiResponse;
     transactionMeta = apiResponseBody.data.transactionMeta[0].transaction;
   } catch (error) {
     console.error("Error parsing API response:", error);
@@ -136,50 +142,10 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const connection = new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
-  let transaction: VersionedTransaction;
-
-  try {
-    transaction = VersionedTransaction.deserialize(Buffer.from(transactionMeta, 'base64'));
-    transaction.message.feePayer = sender;
-
-    for (const lookup of transaction.message.addressTableLookups) {
-      const lookupTableAccount = await connection.getAddressLookupTable(lookup.accountKey).then(res => res.value);
-      if (!lookupTableAccount) {
-        throw new Error(`Failed to resolve address lookup table account: ${lookup.accountKey.toBase58()}`);
-      }
-      if (!lookupTableAccount.addresses || lookupTableAccount.addresses.length === 0) {
-        throw new Error(`No addresses found in the lookup table account: ${lookup.accountKey.toBase58()}`);
-      }
-      lookupTableAccount.addresses.forEach((address: PublicKey) => {
-        transaction.message.staticAccountKeys.push(address);
-      });
-    }
-
-    const latestBlockhash = await connection.getLatestBlockhash() as BlockhashWithExpiryBlockHeight;
-    transaction.message.recentBlockhash = latestBlockhash.blockhash;
-    transaction.message.lastValidBlockHeight = latestBlockhash.lastValidBlockHeight;
-  } catch (error) {
-    console.error("Error creating transaction:", error);
-    return new Response(
-      JSON.stringify({
-        error: {
-          message: `Failed to create transaction: ${error.message}`,
-        },
-      }),
-      {
-        status: 500,
-        headers: ACTIONS_CORS_HEADERS,
-      }
-    );
-  }
-
-  const payload: ActionPostResponse = await createPostResponse({
-    fields: {
-      transaction,
-      message: "Transaction created",
-    },
-  });
+  const payload: ActionPostResponse = {
+    transaction: transactionMeta,
+    message: "Transaction created successfully",
+  };
 
   return new Response(JSON.stringify(payload), {
     headers: ACTIONS_CORS_HEADERS,
