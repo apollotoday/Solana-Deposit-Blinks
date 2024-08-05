@@ -3,17 +3,9 @@ import {
   ActionGetResponse,
   ActionPostRequest,
   ActionPostResponse,
-  createPostResponse,
 } from "@solana/actions";
 
-import {
-  Connection,
-  PublicKey,
-  clusterApiUrl,
-  VersionedTransaction,
-  BlockhashWithExpiryBlockHeight,
-  Transaction,
-} from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 
 interface ApiResponse {
   data: {
@@ -34,7 +26,7 @@ export async function GET(request: Request): Promise<Response> {
       actions: [
         {
           label: "Deposit",
-          href: `${url.href}?amount=10`,
+          href: `${url.origin}${url.pathname}?amount={amountInUSDC}`,
           parameters: [
             {
               name: "amountInUSDC",
@@ -46,6 +38,9 @@ export async function GET(request: Request): Promise<Response> {
       ],
     },
   };
+
+  console.log("Test:", payload.links?.actions[0].href);
+
   return new Response(JSON.stringify(payload), {
     headers: ACTIONS_CORS_HEADERS,
   });
@@ -61,8 +56,8 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = (await request.json()) as ActionPostRequest;
     const url = new URL(request.url);
-    amount = 10;
-
+    amount = parseInt(url.searchParams.get("amount") as string);
+    console.log("Amount:", amount);
     sender = new PublicKey(body.account);
   } catch (error) {
     console.error("Error parsing request or initializing PublicKey:", error);
@@ -96,9 +91,7 @@ export async function POST(request: Request): Promise<Response> {
           Accept: "application/json",
           "Content-Type": "application/json",
           "x-wallet-pubkey": sender.toString(),
-          "x-api-key":
-            process.env.FLEXLEND_API_KEY ||
-            "4b8857f7-dd50-4c74-802f-342d02881f1d",
+          "x-api-key": process.env.FLEXLEND_API_KEY,
         },
         body: JSON.stringify(requestBody),
       }
@@ -146,6 +139,8 @@ export async function POST(request: Request): Promise<Response> {
     transaction: transactionMeta,
     message: "Transaction created successfully",
   };
+
+  console.log(payload);
 
   return new Response(JSON.stringify(payload), {
     headers: ACTIONS_CORS_HEADERS,
