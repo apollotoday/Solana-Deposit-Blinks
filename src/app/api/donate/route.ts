@@ -87,6 +87,7 @@ export async function POST(request: Request): Promise<Response> {
       `https://api.flexlend.fi/generate/account/deposit?priorityFee=50000`,
       {
         method: "POST",
+        //@ts-ignore
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
