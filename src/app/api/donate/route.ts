@@ -18,9 +18,9 @@ interface ApiResponse {
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const payload: ActionGetResponse = {
-    icon: "https://lulo.fi/favicon.ico",
+    icon: "https://i.ibb.co/FHK8d51/lulo.jpg",
     title: "Deposit USDC on Lulo",
-    description: "Deposit USDC on Lulo.",
+    description: "Note: This is an independent project, built externally as a token of appreciation for the Lulo team.",
     label: "Deposit",
     links: {
       actions: [
