@@ -15,23 +15,53 @@ interface ApiResponse {
   };
 }
 
+interface TokenInfo {
+  mintAddress: string;
+  name: string;
+}
+
+const TOKENS: { [key: string]: TokenInfo } = {
+  USDC: {
+    mintAddress: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    name: "USDC",
+  },
+  USDT: {
+    mintAddress: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+    name: "USDT",
+  },
+  PaypalUSD: {
+    mintAddress: "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo",
+    name: "PaypalUSD",
+  },
+};
+
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const payload: ActionGetResponse = {
-    icon: "https://i.ibb.co/FHK8d51/lulo.jpg",
-    title: "Deposit USDC on Lulo",
+    icon: "https://i.ibb.co/m6WD3dX/blink.jpg",
+    title: "Deposit on Lulo",
     description: "Note: This is an independent project, built externally as a token of appreciation for the Lulo team.",
     label: "Deposit",
     links: {
       actions: [
         {
           label: "Deposit",
-          href: `${url.origin}${url.pathname}?amount={amountInUSDC}`,
+          href: `${url.origin}${url.pathname}?amount={amount}&token={token}`,
           parameters: [
             {
-              name: "amountInUSDC",
-              label: "USDC",
+              name: "amount",
+              label: "Amount",
               required: true,
+            },
+            {
+              name: "token",
+              label: "Token",
+              required: true,
+              type: "select",
+              options: Object.keys(TOKENS).map(token => ({
+                label: TOKENS[token].name,
+                value: token,
+              })),
             },
           ],
         },
@@ -52,19 +82,25 @@ export async function POST(request: Request): Promise<Response> {
   let body: ActionPostRequest;
   let amount: number;
   let sender: PublicKey;
+  let token: string;
 
   try {
     body = (await request.json()) as ActionPostRequest;
     const url = new URL(request.url);
     amount = parseInt(url.searchParams.get("amount") as string);
-    console.log("Amount:", amount);
+    token = url.searchParams.get("token") as string;
+    console.log("Amount:", amount, "Token:", token);
     sender = new PublicKey(body.account);
+
+    if (!TOKENS[token]) {
+      throw new Error("Invalid token");
+    }
   } catch (error) {
     console.error("Error parsing request or initializing PublicKey:", error);
     return new Response(
       JSON.stringify({
         error: {
-          message: "Invalid account or request parameters",
+          message: "Invalid account, token, or request parameters",
         },
       }),
       {
@@ -76,7 +112,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const requestBody = {
     owner: sender.toString(),
-    mintAddress: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    mintAddress: TOKENS[token].mintAddress,
     depositAmount: amount.toString(),
   };
 
@@ -138,7 +174,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const payload: ActionPostResponse = {
     transaction: transactionMeta,
-    message: "Transaction created successfully",
+    message: `Transaction created successfully for ${amount} ${TOKENS[token].name}`,
   };
 
   console.log(payload);
